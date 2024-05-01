@@ -1,6 +1,8 @@
 import os
+import re
 import scanpy as sc
 import anndata
+import pandas as pd
 
 def mtx_to_h5ad(input_folder, output_folder):
     '''
@@ -17,10 +19,20 @@ def mtx_to_h5ad(input_folder, output_folder):
             adata.write_h5ad(output_filename)
 
 def get_ann(input_folder):
+    '''
+    returns anndata from a specified folder
+    :param input_folder:
+    :return:
+    '''
     adata = anndata.read_h5ad(input_folder)
     return adata
 
 def check_ann(adata):
+    '''
+    Gives basic information about anndata file
+    :param adata:
+    :return:
+    '''
     n_obs = adata.shape[0]
     n_var = adata.shape[1]
     print("Number of observations (cells):", n_obs)
@@ -28,17 +40,42 @@ def check_ann(adata):
     print("Available variables (annotations):", adata.var.keys())
 
 def filter_ann(adata, output_folder,filter):
+    '''
+    Filters anndata file for minimal amount of cells specified in the filter param
+    :param adata:
+    :param output_folder:
+    :param filter:
+    :return:
+    '''
     sc.pp.filter_genes(adata, min_cells=filter)
-    adata_filtered = adata[:, adata.obs['n_cells'] >= filter]
-    output_path = output_folder + "filtered_data.h5ad"
-    sc.write(output_path, adata_filtered)
+    output_path = output_folder + "\\filtered_data.h5ad"
+    sc.write(output_path, adata)
+
+def annotate_ann(adata, output_folder):
+    '''
+    Checks if gene in anndata file is mitochondrail, returns a text file with gene name and True/False statement
+    :param adata:
+    :param output_folder:
+    '''
+    gene_names = adata.var_names
+    output_file = output_folder + "\\gene_annotation.txt"
+
+    with open(output_file, 'w') as f:
+        for gene_name in gene_names:
+            if gene_name.startswith("MT"):
+                f.write(gene_name + "\tTrue\n")
+            else:
+                f.write(gene_name + "\tFalse\n")
+
 
 i="C:\\Users\\User\\Desktop\\pythonProject1\\testcase"
 o="C:\\Users\\User\\Desktop\\pythonProject1\\rescase"
-ii="C:\\Users\\User\\Desktop\\pythonProject1\\rescase\\test1.h5ad"
+ii="C:\\Users\\User\\Desktop\\pythonProject1\\rescase\\filtered_data.h5ad"
 
 #mtx_to_h5ad(i,o)
 adata=get_ann(ii)
-check_ann(adata)
+#check_ann(adata)
 #filter_ann(adata,o,3)
+annotate_ann(adata,"C:\\Users\\User\\Desktop\\pythonProject1\\rescase")
+
 
