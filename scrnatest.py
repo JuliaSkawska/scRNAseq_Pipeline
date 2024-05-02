@@ -3,6 +3,7 @@ import re
 import scanpy as sc
 import anndata
 import pandas as pd
+import logging
 
 def mtx_to_h5ad(input_folder, output_folder):
     '''
@@ -38,6 +39,7 @@ def check_ann(adata):
     print("Number of observations (cells):", n_obs)
     print("Number of variables (genes):", n_var)
     print("Available variables (annotations):", adata.var.keys())
+    print("Available observations ( annotations): ", adata.obs)
 
 def filter_ann(adata, output_folder,filter):
     '''
@@ -51,31 +53,38 @@ def filter_ann(adata, output_folder,filter):
     output_path = output_folder + "\\filtered_data.h5ad"
     sc.write(output_path, adata)
 
-def annotate_ann(adata, output_folder):
+def annotate_ann(adata,file_path):
     '''
-    Checks if gene in anndata file is mitochondrail, returns a text file with gene name and True/False statement
-    :param adata:
-    :param output_folder:
+    Checks if genes in anndata file are mitochondrial, adds a column named mito to AnnData object with True/False statement
+
+    :param adata: AnnData object containing gene information.
     '''
-    gene_names = adata.var_names
-    output_file = output_folder + "\\gene_annotation.txt"
+    mito_column=[]
 
-    with open(output_file, 'w') as f:
-        for gene_name in gene_names:
-            if gene_name.startswith("MT"):
-                f.write(gene_name + "\tTrue\n")
-            else:
-                f.write(gene_name + "\tFalse\n")
+    for gene_name in adata.var_names:
+        if re.match(r'[Mm][Tt]', gene_name):
+            mito_column.append(True)
+        else:
+            mito_column.append(False)
 
+    if len(mito_column) != len(adata.var):
+        raise ValueError("Length of new_annotations does not match the number of genes in adata.var")
+    adata.var['mito'] = mito_column
+    adata.write(file_path+"\\annotated_ann.h5ad")
 
 i="C:\\Users\\User\\Desktop\\pythonProject1\\testcase"
 o="C:\\Users\\User\\Desktop\\pythonProject1\\rescase"
 ii="C:\\Users\\User\\Desktop\\pythonProject1\\rescase\\filtered_data.h5ad"
+iii="C:\\Users\\User\\Desktop\\pythonProject1\\rescase\\annotated_ann.h5ad"
+iiii="C:\\Users\\User\\Desktop\\pythonProject1\\rescase\\qc.h5ad"
 
-#mtx_to_h5ad(i,o)
-adata=get_ann(ii)
+
+#adata=get_ann(iii)
+#quality_check(adata,o)
+#adata=get_ann(iiii)
 #check_ann(adata)
-#filter_ann(adata,o,3)
-annotate_ann(adata,"C:\\Users\\User\\Desktop\\pythonProject1\\rescase")
+#annotate_ann(adata,o)
+#adata=get_ann(iii)
+#check_ann(adata)
 
 
