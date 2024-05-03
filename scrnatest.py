@@ -5,6 +5,13 @@ import anndata
 import pandas as pd
 import logging
 
+def setup_logging(log_file):
+    '''
+    Set up logging configuration.
+
+    :param log_file: Path to the log file.
+    '''
+    logging.basicConfig(filename=log_file, level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 def mtx_to_h5ad(input_folder, output_folder):
     '''
     Convert 10x Genomics data to AnnData format and save as h5ad files.
@@ -12,12 +19,22 @@ def mtx_to_h5ad(input_folder, output_folder):
     :param input_folder: Path to the folder containing 10x Genomics files.
     :param output_folder: Path to the folder where the h5ad files will be saved.
     '''
-    for folder_name in os.listdir(input_folder):
-        folder_path = os.path.join(input_folder, folder_name)
+    for file_name in os.listdir(input_folder):
+        folder_path = os.path.join(input_folder, file_name)
         if os.path.isdir(folder_path):
-            adata = sc.read_10x_mtx(folder_path, var_names='gene_symbols', cache=True)
-            output_filename = os.path.join(output_folder, f"{folder_name}.h5ad")
-            adata.write_h5ad(output_filename)
+            try:
+                logging.info(f"Processing folder from mxt_to_h5ad: {file_name}")
+
+                adata = sc.read_10x_mtx(folder_path, var_names='gene_symbols', cache=True)
+
+                output_folder_path = os.path.join(output_folder, file_name)
+                os.makedirs(output_folder_path, exist_ok=True)
+                output_file = os.path.join(output_folder_path, f"{file_name}.h5ad")
+                adata.write_h5ad(output_file)
+
+                logging.info(f"Successfully processed folder from mxt_to_h5ad: {file_name}")
+            except Exception as e:
+                logging.error(f"An error occurred while processing {file_name}: {e}")
 
 def get_ann(input_folder):
     '''
@@ -25,8 +42,13 @@ def get_ann(input_folder):
     :param input_folder:
     :return:
     '''
-    adata = anndata.read_h5ad(input_folder)
-    return adata
+    try:
+        adata = anndata.read_h5ad(input_folder)
+        logging.info(f"Successfully retrived anndata: {input_folder}")
+        return adata
+    except Exception as e:
+        print(f"An error occurred while reading the AnnData file: {e}")
+        return None
 
 def check_ann(adata):
     '''
@@ -72,19 +94,22 @@ def annotate_ann(adata,file_path):
     adata.var['mito'] = mito_column
     adata.write(file_path+"\\annotated_ann.h5ad")
 
-i="C:\\Users\\User\\Desktop\\pythonProject1\\testcase"
-o="C:\\Users\\User\\Desktop\\pythonProject1\\rescase"
-ii="C:\\Users\\User\\Desktop\\pythonProject1\\rescase\\filtered_data.h5ad"
-iii="C:\\Users\\User\\Desktop\\pythonProject1\\rescase\\annotated_ann.h5ad"
-iiii="C:\\Users\\User\\Desktop\\pythonProject1\\rescase\\qc.h5ad"
+if __name__ == "__main__":
+    i = "C:\\Users\\User\\Desktop\\pythonProject1\\testcase"
+    o = "C:\\Users\\User\\Desktop\\pythonProject1\\rescase"
+    ii = "C:\\Users\\User\\Desktop\\pythonProject1\\rescase\\filtered_data.h5ad"
+    iii = "C:\\Users\\User\\Desktop\\pythonProject1\\rescase\\annotated_ann.h5ad"
+    iiii = "C:\\Users\\User\\Desktop\\pythonProject1\\rescase\\qc.h5ad"
 
+    setup_logging("C:\\Users\\User\\Desktop\\pythonProject1\\rescase\\test1\\mainlog.log")
+    #mtx_to_h5ad(i, o)
 
-#adata=get_ann(iii)
-#quality_check(adata,o)
-#adata=get_ann(iiii)
-#check_ann(adata)
-#annotate_ann(adata,o)
-#adata=get_ann(iii)
-#check_ann(adata)
+    adata=get_ann("C:\\Users\\User\\Desktop\\pythonProject1\\rescase\\test1\\test1.h5ad")
+    #quality_check(adata,o)
+    #adata=get_ann(iiii)
+    #check_ann(adata)
+    #annotate_ann(adata,o)
+    #adata=get_ann(iii)
+    #check_ann(adata)
 
 
