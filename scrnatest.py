@@ -12,6 +12,7 @@ def setup_logging(log_file):
     :param log_file: Path to the log file.
     '''
     logging.basicConfig(filename=log_file, level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
 def mtx_to_h5ad(input_folder, output_folder):
     '''
     Convert 10x Genomics data to AnnData format and save as h5ad files.
@@ -43,11 +44,12 @@ def get_ann(input_folder):
     :return:
     '''
     try:
+        logging.info(f"Retrieving anndata from: {file_name}")
         adata = anndata.read_h5ad(input_folder)
-        logging.info(f"Successfully retrived anndata: {input_folder}")
+        logging.info(f"Successfully retrieved anndata from: {input_folder}")
         return adata
     except Exception as e:
-        print(f"An error occurred while reading the AnnData file: {e}")
+        logging.error(f"An error occurred while processing {file_name}: {e}")
         return None
 
 def check_ann(adata):
@@ -56,12 +58,24 @@ def check_ann(adata):
     :param adata:
     :return:
     '''
-    n_obs = adata.shape[0]
-    n_var = adata.shape[1]
-    print("Number of observations (cells):", n_obs)
-    print("Number of variables (genes):", n_var)
-    print("Available variables (annotations):", adata.var.keys())
-    print("Available observations ( annotations): ", adata.obs)
+    try:
+        logging.info(f"Retrieving anndata info")
+        n_obs = adata.shape[0]
+        n_var = adata.shape[1]
+        print("Number of observations (cells):", n_obs)
+        print("Number of variables (genes):", n_var)
+        if hasattr(adata, 'var') and hasattr(adata.var, 'keys'):
+            print("Available variables (annotations):", adata.var.keys())
+        else:
+            print("No variable annotations available.")
+
+        if hasattr(adata, 'obs'):
+            print("Available observations (annotations):", adata.obs)
+        else:
+            print("No observation annotations available.")
+
+    except Exception as e:
+        logging.error(f"An error occurred when retrieving info from anndata: {e}")
 
 def filter_ann(adata, output_folder,filter):
     '''
@@ -71,9 +85,21 @@ def filter_ann(adata, output_folder,filter):
     :param filter:
     :return:
     '''
-    sc.pp.filter_genes(adata, min_cells=filter)
-    output_path = output_folder + "\\filtered_data.h5ad"
-    sc.write(output_path, adata)
+    try:
+        if not isinstance(filter_value, int) or filter_value <= 0:
+            raise ValueError("Filter value must be a positive integer.")
+
+        if not os.path.isdir(output_folder):
+            os.makedirs(output_folder)
+            logging.info(f"Created output folder: {output_folder}")
+
+        logging.info("Filtering Anndata...")
+        sc.pp.filter_genes(adata, min_cells=filter_value)
+        output_path = os.path.join(output_folder, "filtered_data.h5ad")
+        sc.write(output_path, adata)
+        logging.info("AnnData filtered successfully.")
+    except Exception as e:
+        logging.error(f"An error occurred while filtering AnnData: {e}")
 
 def annotate_ann(adata,file_path):
     '''
@@ -82,17 +108,22 @@ def annotate_ann(adata,file_path):
     :param adata: AnnData object containing gene information.
     '''
     mito_column=[]
+    try:
+        logging.info("Attempting to annotate anndata with mito")
+        for gene_name in adata.var_names:
+            if re.match(r'[Mm][Tt]', gene_name):
+                mito_column.append(True)
+            else:
+                mito_column.append(False)
 
-    for gene_name in adata.var_names:
-        if re.match(r'[Mm][Tt]', gene_name):
-            mito_column.append(True)
-        else:
-            mito_column.append(False)
+        if len(mito_column) != len(adata.var):
+            raise ValueError("Length of new_annotations does not match the number of genes in adata.var")
 
-    if len(mito_column) != len(adata.var):
-        raise ValueError("Length of new_annotations does not match the number of genes in adata.var")
-    adata.var['mito'] = mito_column
-    adata.write(file_path+"\\annotated_ann.h5ad")
+        adata.var['mito'] = mito_column
+        adata.write(file_path+"\\annotated_ann.h5ad")
+        logging.info("Anndata successfully annotated")
+    except Exception as e:
+        logging.error(f"An error occurred while annotating AnnData: {e}")
 
 if __name__ == "__main__":
     i = "C:\\Users\\User\\Desktop\\pythonProject1\\testcase"
