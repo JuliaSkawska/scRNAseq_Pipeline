@@ -125,6 +125,21 @@ def annotate_ann(adata,file_path):
     except Exception as e:
         logging.error(f"An error occurred while annotating AnnData: {e}")
 
+def filter_ann(adata, file_path, min_gene, min_cell, normalize=True, log_transform=True):
+    try:
+        logging.info("Attempting to filter AnnData")
+        if min_gene>0:
+            sc.pp.filter_cells(adata, min_genes=min_gene)
+        if min_cell>0:
+            sc.pp.filter_genes(adata, min_cells=min_cell)
+        if normalize==True:
+            sc.pp.normalize_total(adata)
+        if log_transform==True:
+            sc.pp.log1p(adata)
+        adata.write(file_path + "\\filtered_ann.h5ad")
+    except Exception as e:
+        logging.error(f"An error occurred while filtering AnnData: {e}")
+
 if __name__ == "__main__":
     i = "C:\\Users\\User\\Desktop\\pythonProject1\\testcase"
     o = "C:\\Users\\User\\Desktop\\pythonProject1\\rescase"
