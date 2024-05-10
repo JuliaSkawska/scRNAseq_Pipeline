@@ -4,6 +4,7 @@ import scanpy as sc
 import anndata
 import pandas as pd
 import logging
+import matplotlib.pyplot as plt
 
 def setup_logging(log_file):
     '''
@@ -44,12 +45,12 @@ def get_ann(input_folder):
     :return:
     '''
     try:
-        logging.info(f"Retrieving anndata from: {file_name}")
+        logging.info(f"Retrieving anndata from: {input_folder}")
         adata = anndata.read_h5ad(input_folder)
         logging.info(f"Successfully retrieved anndata from: {input_folder}")
         return adata
     except Exception as e:
-        logging.error(f"An error occurred while processing {file_name}: {e}")
+        logging.error(f"An error occurred while processing {input_folder}: {e}")
         return None
 
 def check_ann(adata):
@@ -77,14 +78,8 @@ def check_ann(adata):
     except Exception as e:
         logging.error(f"An error occurred when retrieving info from anndata: {e}")
 
-def filter_ann(adata, output_folder,filter):
-    '''
-    Filters anndata file for minimal amount of cells specified in the filter param
-    :param adata:
-    :param output_folder:
-    :param filter:
-    :return:
-    '''
+def filter_ann(adata, output_folder,filter_value):
+
     try:
         if not isinstance(filter_value, int) or filter_value <= 0:
             raise ValueError("Filter value must be a positive integer.")
@@ -125,37 +120,78 @@ def annotate_ann(adata,file_path):
     except Exception as e:
         logging.error(f"An error occurred while annotating AnnData: {e}")
 
-def filter_ann(adata, file_path, min_gene, min_cell, normalize=True, log_transform=True):
+def filter_ann(adata, file_path, min_gene, max_gene, min_cell, max_cell, normalize=True, log_transform=True):
+    '''
+    Filters anndata file for minimal amount of cells specified in the filter param
+    :param adata:
+    :param file_path ( output folder ):
+    :param min_gene:
+    :param min_cell:
+    :param normalize:
+    :param log_transform:
+    :return:
+    '''
     try:
         logging.info("Attempting to filter AnnData")
         if min_gene>0:
             sc.pp.filter_cells(adata, min_genes=min_gene)
+        if max_gene>0:
+            sc.pp.filter_cells(adata, max_genes=max_gene)
         if min_cell>0:
             sc.pp.filter_genes(adata, min_cells=min_cell)
+        if max_cell>0:
+            sc.pp.filter_genes(adata, max_cells=max_cell)
         if normalize==True:
             sc.pp.normalize_total(adata)
         if log_transform==True:
             sc.pp.log1p(adata)
         adata.write(file_path + "\\filtered_ann.h5ad")
+        logging.info("AnnData filtered successfully")
     except Exception as e:
         logging.error(f"An error occurred while filtering AnnData: {e}")
 
+def quality_check(adata, file_path):
+    try:
+        logging.info("Attempting to calculate qc metrics for AnnData")
+        sc.pp.calculate_qc_metrics(adata, inplace=True)
+        output_file = os.path.join(file_path, "qc.h5ad")
+        adata.write(output_file)
+        logging.info("Calculated qc metrics for AnnData and saved to file")
+    except Exception as e:
+        logging.error(f"An error occurred while calculating qc metrics for AnnData: {e}")
+
+def violin_plot(adata,file_path):
+    try:
+        logging.info("Attempting to generate a plot for AnnData")
+        sc.pl.violin(adata, keys=['n_genes_by_counts', 'total_counts', 'pct_counts_mito'], multi_panel=True)
+        output_file = os.path.join(file_path, 'violin_plot.png')
+        plt.savefig(output_file)
+        logging.info("Violin plot was sucessfully generated")
+    except Exception as e:
+        logging.error(f"An error occured while trying to generate a AnnData plot: {e}")
+
 if __name__ == "__main__":
     i = "C:\\Users\\User\\Desktop\\pythonProject1\\testcase"
-    o = "C:\\Users\\User\\Desktop\\pythonProject1\\rescase"
-    ii = "C:\\Users\\User\\Desktop\\pythonProject1\\rescase\\filtered_data.h5ad"
-    iii = "C:\\Users\\User\\Desktop\\pythonProject1\\rescase\\annotated_ann.h5ad"
-    iiii = "C:\\Users\\User\\Desktop\\pythonProject1\\rescase\\qc.h5ad"
-
-    setup_logging("C:\\Users\\User\\Desktop\\pythonProject1\\rescase\\test1\\mainlog.log")
-    #mtx_to_h5ad(i, o)
-
-    adata=get_ann("C:\\Users\\User\\Desktop\\pythonProject1\\rescase\\test1\\test1.h5ad")
-    #quality_check(adata,o)
-    #adata=get_ann(iiii)
+    u = "C:\\Users\\User\\Desktop\\pythonProject1\\rescase"
+    o = "C:\\Users\\User\\Desktop\\pythonProject1\\rescase\\test1"
+    ii = "C:\\Users\\User\\Desktop\\pythonProject1\\rescase\\test1\\filtered_ann.h5ad"
+    iii = "C:\\Users\\User\\Desktop\\pythonProject1\\rescase\\test1\\annotated_ann.h5ad"
+    iiii = "C:\\Users\\User\\Desktop\\pythonProject1\\rescase\\test1\\qc.h5ad"
+    setup_logging("C:\\Users\\User\\Desktop\\pythonProject1\\rescase\\mainlog.log")
+    #mtx_to_h5ad -> filter -> annotate -> quality
+    #mtx_to_h5ad(i, u)
+    #adata=get_ann("C:\\Users\\User\\Desktop\\pythonProject1\\rescase\\test1\\test1.h5ad")
+    #check_ann(adata)
+    #adata=get_ann(iii)
+    #filter_ann(adata,o,200,6000,3,0,True,True)
     #check_ann(adata)
     #annotate_ann(adata,o)
-    #adata=get_ann(iii)
+    #adata=get_ann(ii)
     #check_ann(adata)
+    #quality_check(adata,o)
+    #check_ann(adata)
+    #adata=get_ann(iiii)
+    #violin_plot(adata,o)
+
 
 
