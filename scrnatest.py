@@ -9,18 +9,18 @@ import matplotlib.pyplot as plt
 
 def setup_logging(log_file):
     """
-    Set up logging configuration.
+    Sets up logging configuration.
 
-    param log_file: Path to the log file.
+    :param log_file: Path to the log file.
     """
     logging.basicConfig(filename=log_file, level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 
 def validate_path(path):
     """
-    Validate if the given path is a valid directory.
+    Validates if the given path is a valid directory.
 
-    param path: Path to be validated.
+    :param path: Path to be validated.
     :return: True if the path is a valid directory, False otherwise.
     """
     return os.path.isdir(path)
@@ -28,7 +28,7 @@ def validate_path(path):
 
 def mtx_to_h5ad(input_path, output_path):
     """
-    Convert 10x Genomics data to AnnData format and save as h5ad files.
+    Converts 10x Genomics data to AnnData format and save as h5ad files.
 
     :param input_path:
     :param output_path: Path to the folder where the h5ad files will be saved
@@ -59,9 +59,10 @@ def mtx_to_h5ad(input_path, output_path):
 
 def get_ann(input_path):
     """
-    returns anndata from a specified folder
+    Fetches AnnData from a specified folder
+
     :param input_path:
-    :return:
+    :return: AnnData
     """
     try:
         logging.info(f"Retrieving anndata from: {input_path}")
@@ -79,8 +80,8 @@ def get_ann(input_path):
 def check_ann(adata):
     """
     Gives basic information about anndata file
+
     :param adata:
-    :return:
     """
     try:
         logging.info(f"Retrieving anndata information")
@@ -107,6 +108,7 @@ def check_ann(adata):
 def filter_ann(output_path, adata, min_gene, max_gene, min_cell, max_cell, normalize=True, log_transform=True):
     """
     Filters anndata file for minimal amount of cells specified in the filter param
+
     :param output_path:
     :param adata:
     :param min_gene:
@@ -115,7 +117,6 @@ def filter_ann(output_path, adata, min_gene, max_gene, min_cell, max_cell, norma
     :param max_cell:
     :param normalize:
     :param log_transform:
-    :return:
     """
     try:
         logging.info("Attempting to filter AnnData")
@@ -179,6 +180,12 @@ def annotate_ann(output_path, adata):
 
 
 def quality_check(output_path, adata):
+    """
+    Calculates quality control (QC) metrics for AnnData.
+
+    :param output_path: The path to save the QC metrics file.
+    :param adata: The AnnData object containing the data.
+    """
     try:
         logging.info("Calculating QC metrics for AnnData")
 
@@ -192,6 +199,12 @@ def quality_check(output_path, adata):
 
 
 def violin_plot(output_path, adata):
+    """
+    Generates a violin plot for AnnData.
+
+    :param output_path: The path to save the violin plot image.
+    :param adata: The AnnData object containing the data.
+    """
     try:
         logging.info("Generating violin plot for AnnData")
 
