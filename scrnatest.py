@@ -101,6 +101,7 @@ def check_ann(adata):
             print("Available observations (annotations):", adata.obs)
         else:
             print("No observation annotations available.")
+
     except Exception as e:
         logging.error(f"An error occurred when retrieving info from anndata: {e}")
 
@@ -144,7 +145,8 @@ def filter_ann(output_path, adata, min_gene, max_gene, min_cell, max_cell, norma
         adata.write(filtered_file_path)
 
         logging.info(f"Filtered AnnData saved successfully to: {filtered_file_path}")
-        logging.info("AnnData filtered successfully")
+        return filtered_file_path
+
     except Exception as e:
         logging.error(f"An error occurred while filtering AnnData: {e}")
 
@@ -175,6 +177,8 @@ def annotate_ann(output_path, adata):
         adata.write(annotated_file_path)
 
         logging.info(f"Annotated AnnData saved successfully to: {annotated_file_path}")
+        return annotated_file_path
+
     except Exception as e:
         logging.error(f"An error occurred while annotating AnnData: {e}")
 
@@ -194,6 +198,8 @@ def quality_check(output_path, adata):
         adata.write(qc_output_file)
 
         logging.info("QC metrics calculated and saved to file: %s", qc_output_file)
+        return qc_output_file
+
     except Exception as e:
         logging.error(f"Error calculating QC metrics for AnnData: {e}")
 
@@ -213,10 +219,27 @@ def violin_plot(output_path, adata):
         plt.savefig(plot_output_file)
 
         logging.info("Violin plot generated and saved to file: %s", plot_output_file)
+
     except Exception as e:
         logging.error(f"Error generating violin plot for AnnData: {e}")
 
-
 if __name__ == "__main__":
-    setup_logging("C:\\Users\\User\\Desktop\\pythonProject1\\rescase\\mainlog.log")
     #mtx_to_h5ad -> filter -> annotate -> quality
+    setup_logging("C:\\Users\\User\\Desktop\\pythonProject1\\rescase\\mainlog.log")
+    #mtx_to_h5ad("C:\\Users\\User\\Desktop\\pythonProject1\\testcase","C:\\Users\\User\\Desktop\\pythonProject1\\rescase")
+    #op="C:\\Users\\User\\Desktop\\pythonProject1\\rescase\\test1\\test1.h5ad"
+    #adata=get_ann("C:\\Users\\User\\Desktop\\pythonProject1\\rescase\\test1\\test1.h5ad")
+    #check_ann(adata)
+    #np=filter_ann("C:\\Users\\User\\Desktop\\pythonProject1\\rescase\\test1",adata,200,6000,3,0,False,False)
+    #adata=get_ann("C:\\Users\\User\\Desktop\\pythonProject1\\rescase\\test1\\filtered_ann.h5ad")
+    #np=annotate_ann("C:\\Users\\User\\Desktop\\pythonProject1\\rescase\\test1",adata)
+    #adata=get_ann("C:\\Users\\User\\Desktop\\pythonProject1\\rescase\\test1\\annotated_ann.h5ad")
+    #check_ann(adata)
+    #quality_check("C:\\Users\\User\\Desktop\\pythonProject1\\rescase\\test1",adata)
+    #adata=get_ann(np)
+    #violin_plot("C:\\Users\\User\\Desktop\\pythonProject1\\rescase\\test1",adata)
+    #print("Data type of 'mito' column:", adata.obs['mito'].dtype)
+    #print("Sample values in 'mito' column:", adata.obs['mito'].head())
+
+
+
