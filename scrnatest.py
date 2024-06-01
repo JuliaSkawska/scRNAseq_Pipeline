@@ -4,6 +4,7 @@ import scanpy as sc
 import anndata
 import pandas as pd
 import logging
+import numpy as np
 import matplotlib.pyplot as plt
 
 
@@ -106,49 +107,61 @@ def check_ann(adata):
         logging.error(f"An error occurred when retrieving info from anndata: {e}")
 
 
-def filter_ann(output_path, adata, min_gene, max_gene, min_cell, max_cell, normalize=True, log_transform=True):
+def filter_ann(output_path, adata, min_gene=None, max_gene=None, min_cell=None, max_cell=None, mito=None, normalize=True, log_transform=True):
     """
-    Filters anndata file for minimal amount of cells specified in the filter param
+    Filters AnnData file for minimal amount of cells specified in the filter parameters.
 
-    :param output_path:
-    :param adata:
-    :param min_gene:
-    :param max_gene:
-    :param min_cell:
-    :param max_cell:
-    :param normalize:
-    :param log_transform:
+    :param output_path: Path to save the output AnnData file
+    :param adata: AnnData object
+    :param min_gene: Minimum number of genes per cell
+    :param max_gene: Maximum number of genes per cell
+    :param min_cell: Minimum number of cells per gene
+    :param max_cell: Maximum number of cells per gene
+    :param normalize: Whether to perform total count normalization (default is True)
+    :param log_transform: Whether to perform log transformation (default is True)
     """
     try:
-        logging.info("Attempting to filter AnnData")
+        logging.info("Starting to filter AnnData")
 
-        if min_gene > 0:
+        if min_gene is not None:
             sc.pp.filter_cells(adata, min_genes=min_gene)
-            logging.info(f"Filtered cells with minimum {min_gene} genes")
-        if max_gene > 0:
+            logging.info(f"Filtered cells with fewer than {min_gene} genes")
+        if max_gene is not None:
             sc.pp.filter_cells(adata, max_genes=max_gene)
-            logging.info(f"Filtered cells with maximum {max_gene} genes")
-        if min_cell > 0:
+            logging.info(f"Filtered cells with more than {max_gene} genes")
+
+        if min_cell is not None:
             sc.pp.filter_genes(adata, min_cells=min_cell)
-            logging.info(f"Filtered genes with minimum {min_cell} cells")
-        if max_cell > 0:
+            logging.info(f"Filtered genes with fewer than {min_cell} cells")
+        if max_cell is not None:
             sc.pp.filter_genes(adata, max_cells=max_cell)
-            logging.info(f"Filtered genes with maximum {max_cell} cells")
+            logging.info(f"Filtered genes with more than {max_cell} cells")
+
         if normalize:
             sc.pp.normalize_total(adata)
             logging.info("Performed total count normalization")
+
         if log_transform:
             sc.pp.log1p(adata)
             logging.info("Performed log transformation")
 
+        if mito is not None:
+            if 'pct_counts_mito' not in adata.obs.columns:
+                raise ValueError("'pct_counts_mito' column is missing in adata.obs")
+
+            adata = adata[adata.obs['pct_counts_mito'] <= mito].copy()
+            logging.info(f"Filtered observations with pct_counts_mito <= {mito}")
+
+
         filtered_file_path = os.path.join(output_path, "filtered_ann.h5ad")
         adata.write(filtered_file_path)
-
         logging.info(f"Filtered AnnData saved successfully to: {filtered_file_path}")
+
         return filtered_file_path
 
     except Exception as e:
-        logging.error(f"An error occurred while filtering AnnData: {e}")
+        logging.error(f"Error occurred while filtering AnnData: {e}")
+        raise
 
 
 def annotate_ann(output_path, adata):
@@ -203,6 +216,35 @@ def quality_check(output_path, adata):
     except Exception as e:
         logging.error(f"Error calculating QC metrics for AnnData: {e}")
 
+def add_pct_counts_mito(output_path, adata):
+    """
+    Adds pct_counts_mito metric to AnnData file (mitochondrial genes/all genes)
+    :param output_path: Path to save the output AnnData file
+    :param adata: AnnData object
+    """
+    try:
+        logging.info("Attempting to add pct_counts_mito to AnnData file")
+
+        if 'mito' not in adata.var.columns:
+            raise ValueError("'mito' column is missing in adata.var")
+
+        total_counts_per_cell = np.sum(adata.X, axis=1)
+
+        # Boolean mask for mitochondrial genes
+        mito_mask = adata.var['mito'].values
+
+        mito_counts_per_cell = np.sum(adata.X[:, mito_mask], axis=1)
+
+        pct_counts_mito = (mito_counts_per_cell / total_counts_per_cell) * 100
+
+        adata.obs['pct_counts_mito'] = pct_counts_mito
+
+        pct_file_path = os.path.join(output_path, "pct_mito.h5ad")
+        adata.write(pct_file_path)
+        logging.info("pct_counts_mito successfully added to file: %s", pct_file_path)
+
+    except Exception as e:
+        logging.error(f"Error when adding pct_counts_mito to AnnData: {e}")
 
 def violin_plot(output_path, adata):
     """
@@ -224,22 +266,30 @@ def violin_plot(output_path, adata):
         logging.error(f"Error generating violin plot for AnnData: {e}")
 
 if __name__ == "__main__":
-    #mtx_to_h5ad -> filter -> annotate -> quality
+    #mtx_to_h5ad -> filter (<3 cells ) -> annotate -> add pct_counts_mito  -> quality_check -> visualise -> filter -> visualise
     setup_logging("C:\\Users\\User\\Desktop\\pythonProject1\\rescase\\mainlog.log")
+    op="C:\\Users\\User\\Desktop\\pythonProject1\\rescase\\test1"
     #mtx_to_h5ad("C:\\Users\\User\\Desktop\\pythonProject1\\testcase","C:\\Users\\User\\Desktop\\pythonProject1\\rescase")
-    #op="C:\\Users\\User\\Desktop\\pythonProject1\\rescase\\test1\\test1.h5ad"
     #adata=get_ann("C:\\Users\\User\\Desktop\\pythonProject1\\rescase\\test1\\test1.h5ad")
-    #check_ann(adata)
-    #np=filter_ann("C:\\Users\\User\\Desktop\\pythonProject1\\rescase\\test1",adata,200,6000,3,0,False,False)
+    #filter_ann(output_path=op,adata=adata,min_cell=3,log_transform=False,normalize=False)
     #adata=get_ann("C:\\Users\\User\\Desktop\\pythonProject1\\rescase\\test1\\filtered_ann.h5ad")
-    #np=annotate_ann("C:\\Users\\User\\Desktop\\pythonProject1\\rescase\\test1",adata)
+    #annotate_ann("C:\\Users\\User\\Desktop\\pythonProject1\\rescase\\test1",adata)
     #adata=get_ann("C:\\Users\\User\\Desktop\\pythonProject1\\rescase\\test1\\annotated_ann.h5ad")
-    #check_ann(adata)
+    #add_pct_counts_mito("C:\\Users\\User\\Desktop\\pythonProject1\\rescase\\test1",adata)
+    #adata=get_ann("C:\\Users\\User\\Desktop\\pythonProject1\\rescase\\test1\\pct_mito.h5ad")
     #quality_check("C:\\Users\\User\\Desktop\\pythonProject1\\rescase\\test1",adata)
-    #adata=get_ann(np)
+    #adata=get_ann("C:\\Users\\User\\Desktop\\pythonProject1\\rescase\\test1\\qc.h5ad")
     #violin_plot("C:\\Users\\User\\Desktop\\pythonProject1\\rescase\\test1",adata)
-    #print("Data type of 'mito' column:", adata.obs['mito'].dtype)
-    #print("Sample values in 'mito' column:", adata.obs['mito'].head())
+    #adata=get_ann("C:\\Users\\User\\Desktop\\pythonProject1\\rescase\\test1\\qc.h5ad")
+    #filter_ann(output_path=op,adata=adata,min_gene=200,max_gene=6000,mito=15,normalize=False,log_transform=False)
+    #adata=get_ann("C:\\Users\\User\\Desktop\\pythonProject1\\rescase\\test1\\filtered_ann.h5ad")
+    #add_pct_counts_mito("C:\\Users\\User\\Desktop\\pythonProject1\\rescase\\test1", adata)
+    #adata=get_ann("C:\\Users\\User\\Desktop\\pythonProject1\\rescase\\test1\\pct_mito.h5ad")
+    #quality_check("C:\\Users\\User\\Desktop\\pythonProject1\\rescase\\test1",adata)
+    #adata = get_ann("C:\\Users\\User\\Desktop\\pythonProject1\\rescase\\test1\\qc.h5ad")
+    #violin_plot("C:\\Users\\User\\Desktop\\pythonProject1\\rescase\\test1",adata)
+
+
 
 
 
