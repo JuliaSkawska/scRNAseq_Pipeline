@@ -47,7 +47,7 @@ def mtx_to_h5ad(input_path, output_path):
                 logging.info(f"Processing folder from mxt_to_h5ad: {file_name}")
 
                 adata = sc.read_10x_mtx(folder_path, var_names='gene_symbols', cache=True)
-
+                adata.var["mt"] = adata.var_names.str.startswith("MT-")
                 output_folder_path = os.path.join(output_path, file_name)
                 os.makedirs(output_folder_path, exist_ok=True)
                 output_file = os.path.join(output_folder_path, f"{file_name}.h5ad")
@@ -146,11 +146,11 @@ def filter_ann(output_path, adata, min_gene=None, max_gene=None, min_cell=None, 
             logging.info("Performed log transformation")
 
         if mito is not None:
-            if 'pct_counts_mito' not in adata.obs.columns:
-                raise ValueError("'pct_counts_mito' column is missing in adata.obs")
+            if 'pct_counts_mt' not in adata.obs.columns:
+                raise ValueError("'pct_counts_mt' column is missing in adata.obs")
 
-            adata = adata[adata.obs['pct_counts_mito'] <= mito].copy()
-            logging.info(f"Filtered observations with pct_counts_mito <= {mito}")
+            adata = adata[adata.obs['pct_counts_mt'] <= mito].copy()
+            logging.info(f"Filtered observations with pct_counts_mt <= {mito}")
 
 
         filtered_file_path = os.path.join(output_path, "filtered_ann.h5ad")
@@ -163,39 +163,6 @@ def filter_ann(output_path, adata, min_gene=None, max_gene=None, min_cell=None, 
         logging.error(f"Error occurred while filtering AnnData: {e}")
         raise
 
-
-def annotate_ann(output_path, adata):
-    """
-    Checks if genes in anndata file are mitochondrial, adds a column named mito to AnnData object with bool value
-
-    :param output_path:
-    :param adata: AnnData object containing gene information.
-    """
-    mito_column = []
-    try:
-        logging.info("Attempting to annotate AnnData with mitochondrial genes")
-
-        for gene_name in adata.var_names:
-            if re.match(r'[Mm][Tt]', gene_name):
-                mito_column.append(True)
-            else:
-                mito_column.append(False)
-
-        if len(mito_column) != len(adata.var):
-            raise ValueError("Length of mito_column does not match the number of genes in adata.var")
-
-        adata.var['mito'] = mito_column
-
-        annotated_file_path = os.path.join(output_path, "annotated_ann.h5ad")
-        adata.write(annotated_file_path)
-
-        logging.info(f"Annotated AnnData saved successfully to: {annotated_file_path}")
-        return annotated_file_path
-
-    except Exception as e:
-        logging.error(f"An error occurred while annotating AnnData: {e}")
-
-
 def quality_check(output_path, adata):
     """
     Calculates quality control (QC) metrics for AnnData.
@@ -206,7 +173,7 @@ def quality_check(output_path, adata):
     try:
         logging.info("Calculating QC metrics for AnnData")
 
-        sc.pp.calculate_qc_metrics(adata, inplace=True)
+        sc.pp.calculate_qc_metrics(adata, qc_vars=["mt"], percent_top=None, log1p=False, inplace=True)
         qc_output_file = os.path.join(output_path, "qc.h5ad")
         adata.write(qc_output_file)
 
@@ -216,36 +183,20 @@ def quality_check(output_path, adata):
     except Exception as e:
         logging.error(f"Error calculating QC metrics for AnnData: {e}")
 
-def add_pct_counts_mito(output_path, adata):
-    """
-    Adds pct_counts_mito metric to AnnData file (mitochondrial genes/all genes)
-    :param output_path: Path to save the output AnnData file
-    :param adata: AnnData object
-    """
+def highly_variable(output_path, adata):
     try:
-        logging.info("Attempting to add pct_counts_mito to AnnData file")
+        logging.info("Calculating highly variable genes")
 
-        if 'mito' not in adata.var.columns:
-            raise ValueError("'mito' column is missing in adata.var")
+        sc.pp.highly_variable_genes(adata, min_mean=0.0125, max_mean=3, min_disp=0.5)
+        hv_output_file = os.path.join(output_path, "hv.h5ad")
+        sc.pl.highly_variable_genes(adata)
+        adata.write(hv_output_file)
 
-        total_counts_per_cell = np.sum(adata.X, axis=1)
-
-        # Boolean mask for mitochondrial genes
-        mito_mask = adata.var['mito'].values
-
-        mito_counts_per_cell = np.sum(adata.X[:, mito_mask], axis=1)
-
-        pct_counts_mito = (mito_counts_per_cell / total_counts_per_cell) * 100
-
-        adata.obs['pct_counts_mito'] = pct_counts_mito
-
-        pct_file_path = os.path.join(output_path, "pct_mito.h5ad")
-        adata.write(pct_file_path)
-        logging.info("pct_counts_mito successfully added to file: %s", pct_file_path)
+        logging.info("Highly variable genes calculated and saved to file: %s", hv_output_file)
+        return hv_output_file
 
     except Exception as e:
-        logging.error(f"Error when adding pct_counts_mito to AnnData: {e}")
-
+        logging.error(f"Error calculating highly variable genes for AnnData: {e}")
 def violin_plot(output_path, adata):
     """
     Generates a violin plot for AnnData.
@@ -256,7 +207,7 @@ def violin_plot(output_path, adata):
     try:
         logging.info("Generating violin plot for AnnData")
 
-        sc.pl.violin(adata, keys=['n_genes_by_counts', 'total_counts', 'pct_counts_mito'], multi_panel=True)
+        sc.pl.violin(adata, keys=['n_genes_by_counts', 'total_counts', 'pct_counts_mt'], multi_panel=True)
         plot_output_file = os.path.join(output_path, 'violin_plot.png')
         plt.savefig(plot_output_file)
 
@@ -271,24 +222,20 @@ if __name__ == "__main__":
     op="C:\\Users\\User\\Desktop\\pythonProject1\\rescase\\test1"
     #mtx_to_h5ad("C:\\Users\\User\\Desktop\\pythonProject1\\testcase","C:\\Users\\User\\Desktop\\pythonProject1\\rescase")
     #adata=get_ann("C:\\Users\\User\\Desktop\\pythonProject1\\rescase\\test1\\test1.h5ad")
-    #filter_ann(output_path=op,adata=adata,min_cell=3,log_transform=False,normalize=False)
-    #adata=get_ann("C:\\Users\\User\\Desktop\\pythonProject1\\rescase\\test1\\filtered_ann.h5ad")
-    #annotate_ann("C:\\Users\\User\\Desktop\\pythonProject1\\rescase\\test1",adata)
-    #adata=get_ann("C:\\Users\\User\\Desktop\\pythonProject1\\rescase\\test1\\annotated_ann.h5ad")
-    #add_pct_counts_mito("C:\\Users\\User\\Desktop\\pythonProject1\\rescase\\test1",adata)
-    #adata=get_ann("C:\\Users\\User\\Desktop\\pythonProject1\\rescase\\test1\\pct_mito.h5ad")
-    #quality_check("C:\\Users\\User\\Desktop\\pythonProject1\\rescase\\test1",adata)
+    #path=filter_ann(output_path=op,adata=adata,min_cell=3,log_transform=False,normalize=False)
+    #adata=get_ann(path)
+    #path=quality_check(op,adata)
+    #adata=get_ann(path)
+    #violin_plot(op,adata)
+    #path=filter_ann(output_path=op,adata=adata,min_gene=200,max_gene=6000,mito=15,normalize=False,log_transform=False)
+    #adata=get_ann(path)
+    #path=quality_check(op,adata)
+    #adata=get_ann(path)
+    #violin_plot(op,adata)
     #adata=get_ann("C:\\Users\\User\\Desktop\\pythonProject1\\rescase\\test1\\qc.h5ad")
-    #violin_plot("C:\\Users\\User\\Desktop\\pythonProject1\\rescase\\test1",adata)
-    #adata=get_ann("C:\\Users\\User\\Desktop\\pythonProject1\\rescase\\test1\\qc.h5ad")
-    #filter_ann(output_path=op,adata=adata,min_gene=200,max_gene=6000,mito=15,normalize=False,log_transform=False)
-    #adata=get_ann("C:\\Users\\User\\Desktop\\pythonProject1\\rescase\\test1\\filtered_ann.h5ad")
-    #add_pct_counts_mito("C:\\Users\\User\\Desktop\\pythonProject1\\rescase\\test1", adata)
-    #adata=get_ann("C:\\Users\\User\\Desktop\\pythonProject1\\rescase\\test1\\pct_mito.h5ad")
-    #quality_check("C:\\Users\\User\\Desktop\\pythonProject1\\rescase\\test1",adata)
-    #adata = get_ann("C:\\Users\\User\\Desktop\\pythonProject1\\rescase\\test1\\qc.h5ad")
-    #violin_plot("C:\\Users\\User\\Desktop\\pythonProject1\\rescase\\test1",adata)
-
+    #path=filter_ann(output_path=op,adata=adata,normalize=True,log_transform=True)
+    adata=get_ann("C:\\Users\\User\\Desktop\\pythonProject1\\rescase\\test1\\filtered_ann.h5ad")
+    path=highly_variable(op,adata)
 
 
 
